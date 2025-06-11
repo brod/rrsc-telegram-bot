@@ -6,15 +6,14 @@ const runAvailabilityCheck = require('./check-reservation');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Start Telegram polling
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 
-// Health check endpoint for Render + cron-job pings
+// Health check endpoint for cron-job pings
 app.get('/healthz', (req, res) => {
   res.send('✅ Bot is alive and running.');
 });
 
-// Telegram bot handlers
+// Start command
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
 
@@ -27,6 +26,7 @@ bot.onText(/\/start/i, (msg) => {
   });
 });
 
+// General check command
 bot.onText(/\/check|court|availability|status/i, async (msg) => {
   const chatId = msg.chat.id;
 
@@ -44,6 +44,37 @@ bot.onText(/\/check|court|availability|status/i, async (msg) => {
   }
 });
 
+// Day-specific commands (e.g., /mon, /tue)
+const dayAbbreviations = {
+  mon: 'Mon',
+  tue: 'Tue',
+  wed: 'Wed',
+  thu: 'Thu',
+  fri: 'Fri',
+  sat: 'Sat',
+  sun: 'Sun'
+};
+
+Object.keys(dayAbbreviations).forEach((cmd) => {
+  bot.onText(new RegExp(`/${cmd}`, 'i'), async (msg) => {
+    const chatId = msg.chat.id;
+    const filter = dayAbbreviations[cmd];
+
+    bot.sendMessage(chatId, `🔍 Checking court availability for ${filter}s...`);
+
+    try {
+      const result = await runAvailabilityCheck(cmd); // pass "mon", "tue", etc.
+      const chunks = result.match(/[\s\S]{1,4000}/g);
+      for (const chunk of chunks) {
+        await bot.sendMessage(chatId, chunk);
+      }
+    } catch (err) {
+      bot.sendMessage(chatId, `❗ Error: ${err.message}`);
+    }
+  });
+});
+
+// Inline button handler
 bot.on('callback_query', async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
   const action = callbackQuery.data;
@@ -63,10 +94,10 @@ bot.on('callback_query', async (callbackQuery) => {
     }
   }
 
-  bot.answerCallbackQuery(callbackQuery.id); // Acknowledge click
+  bot.answerCallbackQuery(callbackQuery.id);
 });
 
-// Catch-all: unknown message handler
+// Unknown input help
 bot.on('message', (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text.toLowerCase();
@@ -76,16 +107,16 @@ bot.on('message', (msg) => {
     !text.startsWith('/check') &&
     !text.includes('court') &&
     !text.includes('availability') &&
-    !text.includes('status')
+    !text.includes('status') &&
+    !Object.keys(dayAbbreviations).some(day => text.startsWith(`/${day}`))
   ) {
     bot.sendMessage(
       chatId,
-      `🤖 Hi! I didn't understand that.\n\nYou can type:\n• /check\n• court\n• availability\n\nOr click the "Check Courts" button with /start`
+      `🤖 Not sure what you meant.\n\nTry one of these:\n• /check — all days\n• /mon — Mondays\n• /tue — Tuesdays\n• /wed — Wednesdays\n...and so on\n\nOr click the "Check Courts" button with /start`
     );
   }
 });
 
-// Start the Express web server
 app.listen(PORT, () => {
   console.log(`🌐 Express server running on port ${PORT}`);
 });
