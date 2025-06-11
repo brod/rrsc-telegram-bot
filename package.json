@@ -1,0 +1,26 @@
+{
+  "name": "rrsc-telegram-bot",
+  "version": "1.0.0",
+  "main": "check-reservation.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "author": "rucky",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.5.0",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "keywords": [
+    "telegram-bot",
+    "basketball",
+    "court-checker",
+    "twilight-availability",
+    "round-rock",
+    "dayjs",
+    "twilio-alternative"
+  ],
+  "description": "A Telegram bot that checks and returns available basketball court times between 7 PM and 10 PM (or 9 PM on weekends) by scraping the Round Rock scheduling API. Includes aliases, inline buttons, and support for minimum 2-hour/3-hour checks."
+}
