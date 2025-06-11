@@ -1,9 +1,20 @@
+const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
-const runAvailabilityCheck = require('./check-reservation'); 
+const runAvailabilityCheck = require('./check-reservation');
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Start Telegram polling
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 
+// Health check endpoint for Render + cron-job pings
+app.get('/healthz', (req, res) => {
+  res.send('✅ Bot is alive and running.');
+});
+
+// Telegram bot handlers
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
 
@@ -55,7 +66,7 @@ bot.on('callback_query', async (callbackQuery) => {
   bot.answerCallbackQuery(callbackQuery.id); // Acknowledge click
 });
 
-// Catch-all: unrecognized messages
+// Catch-all: unknown message handler
 bot.on('message', (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text.toLowerCase();
@@ -72,4 +83,9 @@ bot.on('message', (msg) => {
       `🤖 Hi! I didn't understand that.\n\nYou can type:\n• /check\n• court\n• availability\n\nOr click the "Check Courts" button with /start`
     );
   }
+});
+
+// Start the Express web server
+app.listen(PORT, () => {
+  console.log(`🌐 Express server running on port ${PORT}`);
 });
