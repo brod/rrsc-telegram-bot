@@ -1,31 +1,50 @@
-# 🏀 Court Availability Telegram Bot
+# 🏀 Round Rock Court Availability Bot
 
-This is a Telegram bot that checks which basketball courts in Round Rock are available between **7:00 PM – 10:00 PM** on weekdays and **7:00 PM – 9:00 PM** on weekends. It pulls live data from the city’s scheduling system and shows which full courts are open for at least 2 hours.
-
----
-
-## Features
-
-- Type `/check` or just say "court" or "availability" to get results
-- Shows courts with at least 2 hours open
-- Adds a `*` next to any court with less than 3 hours available
-- Shows a button you can tap to "Check Courts" when you send `/start`
+Want to play full-court basketball at Round Rock Sports Center but hate guessing if courts are open? This bot helps you check court availability straight from your phone.
 
 ---
 
-## Commands
+## 📱 How to Use It
 
-| Command     | What It Does                          |
-|-------------|----------------------------------------|
-| `/start`    | Sends a welcome message with a button  |
-| `/check`    | Checks availability for all courts     |
-| `court`, `availability`, `status` | Also trigger a check |
+**Bot Name:** [@RRSCCourtCheckerBot](https://t.me/RRSCCourtCheckerBot)
+
+Open it in the Telegram app and send one of the following commands:
+
+| Command  | What It Does                                 |
+|----------|-----------------------------------------------|
+| `/check` | Shows all available courts (Mon–Wed only)     |
+| `/mon`   | Shows availability for **Mondays only**       |
+| `/tue`   | Shows availability for **Tuesdays only**      |
+| `/wed`   | Shows availability for **Wednesdays only**    |
+| `/thu`   | Shows availability for **Thursdays only**     |
+| `/fri`   | Shows availability for **Fridays only**       |
+| `/sat`   | Shows availability for **Saturdays only**     |
+| `/sun`   | Shows availability for **Sundays only**       |
+
+You can also type `/start` to get a quick-access button.
 
 ---
 
-## Setup
+## 🕒 When It Checks
 
-1. Clone this repo
-2. Install dependencies:
-   ```bash
-   npm install
+- **Weekdays (Mon–Fri):** 7:00 PM – 10:00 PM  
+- **Weekends (Sat–Sun):** 7:00 PM – 9:00 PM
+
+The bot only shows **full courts** that are open for at least **2 hours**.
+
+---
+
+## 💡 How to Read Results
+
+📅 Court availability for Wed:
+2025-07-02 (Wednesday) – Courts: 1, 4, 6*
+
+= Court has at least 2 hours but less than 3 hours.
+
+---
+
+## 🙋 Need Help?
+
+If the bot doesn’t understand your message, try typing `/check` or `/mon`. Or just click the button after you type `/start`.
+
+No app install, no account required — just Telegram.
