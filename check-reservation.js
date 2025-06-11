@@ -12,17 +12,13 @@ const COURT_MAP = {
 };
 
 const WINDOW_START = '19:00:00'; // 7:00 PM
-const MONTH_TO_CHECK = 3;
+const DEFAULT_CHECK_DAYS = ['Mon', 'Tue', 'Wed']; // For /check
+let durationLabel;
 
 function getWindowEnd(date) {
   const day = dayjs(date).format('ddd');
   return ['Sat', 'Sun'].includes(day) ? '21:00:00' : '22:00:00';
 }
-
-const MIN_DURATION_MINUTES = 180;
-const CHECK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const CHECK_DAYS_WEEKENDS = ['Mon', 'Tue', 'Wed', ' Thu', 'Fri', 'Sat', 'Sun'];
-let durationLabel;
 
 function formatDuration(minutes) {
   const hrs = Math.floor(minutes / 60);
@@ -61,7 +57,6 @@ function isCourtAvailable(reservations, date) {
       if (pointer.isAfter(windowEnd)) break;
     }
 
-    // Final check after last reservation
     if (pointer.isBefore(windowEnd)) {
       const remainingFree = windowEnd.diff(pointer, 'minute');
       if (remainingFree > maxFreeDuration) {
@@ -71,9 +66,8 @@ function isCourtAvailable(reservations, date) {
 
     if (maxFreeDuration >= 120) {
       const endTime12hr = dayjs(`${date}T${getWindowEnd(date)}`).format('h:mm A');
-      const courtLabel = maxFreeDuration < MIN_DURATION_MINUTES ? `${courtId}*` : `${courtId}`;
-      console.log(`✅ Court ${courtLabel} is available from 7:00 PM - ${endTime12hr} (${formatDuration(maxFreeDuration)} free)`);
-      availableCourts.push(courtLabel);
+      const label = maxFreeDuration < 180 ? `${courtId}*` : `${courtId}`;
+      availableCourts.push(label);
     }
   }
 
@@ -82,18 +76,16 @@ function isCourtAvailable(reservations, date) {
 
 async function checkDate(date) {
   const weekday = dayjs(date).format('dddd');
-  console.log(`\n🔍 Checking ${date} (${weekday})...`);
-
   const url = `https://roundrocktexas.dserec.com/online/fcscheduling/api/reservation?start=${date}&end=${date}`;
+
   try {
-    const { data } = await axios.get(url); // add { headers } if needed
+    const { data } = await axios.get(url);
     const reservations = (data?.data || []).filter(r => r.space_id >= 1 && r.space_id <= 18);
+    const courts = isCourtAvailable(reservations, date);
 
-    const availableCourts = isCourtAvailable(reservations, date);
-
-    if (availableCourts.length > 0) {
-      durationLabel = formatDuration(MIN_DURATION_MINUTES);
-      return `${date} (${weekday}) – Courts: ${availableCourts.join(', ')}`;
+    if (courts.length > 0) {
+      durationLabel = formatDuration(180); // constant default min label
+      return `${date} (${weekday}) – Courts: ${courts.join(', ')}`;
     }
   } catch (err) {
     console.error(`❗ Error checking ${date} (${weekday}): ${err.message}`);
@@ -102,14 +94,18 @@ async function checkDate(date) {
   return null;
 }
 
-async function runAvailabilityCheck() {
+async function runAvailabilityCheck(filterDay = null) {
   const today = dayjs();
   const endDate = today.add(4, 'month');
   const datePromises = [];
 
   for (let date = today; date.isBefore(endDate); date = date.add(1, 'day')) {
     const dayName = date.format('ddd');
-    if (!CHECK_DAYS.includes(dayName)) continue;
+    if (filterDay) {
+      if (dayName.toLowerCase() !== filterDay.toLowerCase()) continue;
+    } else if (!DEFAULT_CHECK_DAYS.includes(dayName)) {
+      continue;
+    }
 
     const dateStr = date.format('YYYY-MM-DD');
     datePromises.push(checkDate(dateStr));
@@ -121,10 +117,10 @@ async function runAvailabilityCheck() {
     .map(r => r.value);
 
   const output = [
-    `📅 Available full court dates with minimum ${durationLabel} between 7:00 PM and weekend-adjusted closing times:`,
+    `📅 Court availability${filterDay ? ` for ${filterDay}s` : ' (Mon–Wed)' }:`,
     ...availableDates,
     '',
-    '* = Court has at least 2 hours available but less than 3 hours.'
+    '* = Court has at least 2 hours but less than 3 hours.'
   ];
 
   return output.join('\n');
