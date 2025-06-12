@@ -1,4 +1,3 @@
-// bot.js
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
@@ -9,15 +8,15 @@ const PORT = process.env.PORT || 3000;
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 
-// Health check endpoint
+// Health check endpoint for cron-job pings
 app.get('/healthz', (req, res) => {
-  console.log('💓 Health check received');
   res.send('✅ Bot is alive and running.');
 });
 
 // Start command
 bot.onText(/\/start/i, (msg) => {
   const chatId = msg.chat.id;
+
   bot.sendMessage(chatId, '👋 Welcome to the Round Rock Sport Center Court Availability Bot by Rucky! What would you like to do?', {
     reply_markup: {
       inline_keyboard: [
@@ -30,10 +29,13 @@ bot.onText(/\/start/i, (msg) => {
 // General check command
 bot.onText(/\/check|court|availability|status/i, async (msg) => {
   const chatId = msg.chat.id;
+
   bot.sendMessage(chatId, '🔍 Checking court availability...');
+
   try {
     const result = await runAvailabilityCheck();
-    const chunks = result.match(/[\s\S]{1,4000}/g);
+    const chunks = result.match(/[\s\S]{1,4000}/g); 
+
     for (const chunk of chunks) {
       await bot.sendMessage(chatId, chunk);
     }
@@ -42,18 +44,26 @@ bot.onText(/\/check|court|availability|status/i, async (msg) => {
   }
 });
 
-// Day-specific commands
+// Day-specific commands (e.g., /mon, /tue)
 const dayAbbreviations = {
-  mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun'
+  mon: 'Mon',
+  tue: 'Tue',
+  wed: 'Wed',
+  thu: 'Thu',
+  fri: 'Fri',
+  sat: 'Sat',
+  sun: 'Sun'
 };
 
 Object.keys(dayAbbreviations).forEach((cmd) => {
   bot.onText(new RegExp(`/${cmd}`, 'i'), async (msg) => {
     const chatId = msg.chat.id;
     const filter = dayAbbreviations[cmd];
+
     bot.sendMessage(chatId, `🔍 Checking court availability (${filter})...`);
+
     try {
-      const result = await runAvailabilityCheck(cmd);
+      const result = await runAvailabilityCheck(cmd); // pass "mon", "tue", etc.
       const chunks = result.match(/[\s\S]{1,4000}/g);
       for (const chunk of chunks) {
         await bot.sendMessage(chatId, chunk);
@@ -64,75 +74,46 @@ Object.keys(dayAbbreviations).forEach((cmd) => {
   });
 });
 
-// All days (Mon–Sun)
-bot.onText(/\/all/i, async (msg) => {
-  const chatId = msg.chat.id;
-  bot.sendMessage(chatId, `📅 Checking availability for all days (Mon–Sun)...`);
-  try {
-    const result = await runAvailabilityCheck('all');
-    const chunks = result.match(/[\s\S]{1,4000}/g);
-    for (const chunk of chunks) {
-      await bot.sendMessage(chatId, chunk);
+// Inline button handler
+bot.on('callback_query', async (callbackQuery) => {
+  const chatId = callbackQuery.message.chat.id;
+  const action = callbackQuery.data;
+
+  if (action === 'check_availability') {
+    bot.sendMessage(chatId, '🔍 Checking court availability...');
+
+    try {
+      const result = await runAvailabilityCheck();
+      const chunks = result.match(/[\s\S]{1,4000}/g);
+
+      for (const chunk of chunks) {
+        await bot.sendMessage(chatId, chunk);
+      }
+    } catch (err) {
+      bot.sendMessage(chatId, `❗ Error: ${err.message}`);
     }
-  } catch (err) {
-    bot.sendMessage(chatId, `❗ Error: ${err.message}`);
   }
+
+  bot.answerCallbackQuery(callbackQuery.id);
 });
 
-// Month-specific commands
-const validMonths = [
-  'january', 'february', 'march', 'april', 'may', 'june',
-  'july', 'august', 'september', 'october', 'november', 'december'
-];
-
-validMonths.forEach((month) => {
-  bot.onText(new RegExp(`/${month}`, 'i'), async (msg) => {
-    const chatId = msg.chat.id;
-    const label = month.charAt(0).toUpperCase() + month.slice(1);
-    bot.sendMessage(chatId, `📅 Checking court availability for ${label}...`);
-    try {
-      const result = await runAvailabilityCheck(null, month);
-      const chunks = result.match(/[\s\S]{1,4000}/g);
-      for (const chunk of chunks) {
-        await bot.sendMessage(chatId, chunk);
-      }
-    } catch (err) {
-      bot.sendMessage(chatId, `❗ Error: ${err.message}`);
-    }
-  });
-});
-
-// Fallback for unrecognized input
 bot.on('message', (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text.toLowerCase();
+
   if (
     !text.startsWith('/start') &&
     !text.startsWith('/check') &&
     !text.includes('court') &&
     !text.includes('availability') &&
     !text.includes('status') &&
-    !Object.keys(dayAbbreviations).some(day => text.startsWith(`/${day}`)) &&
-    !validMonths.some(month => text.startsWith(`/${month}`)) &&
-    !text.startsWith('/all')
+    !Object.keys(dayAbbreviations).some(day => text.startsWith(`/${day}`))
   ) {
     bot.sendMessage(
       chatId,
-      `🤖 Hello!
-        Try one of these:
-        • /check — Mon–Wed
-        • /all — all days
-        • /mon — Mondays
-        • /june — June only
-        ...and so on
-
-        Or click the "Check Courts" button with /start`
+      `🤖 Hello!\n\nTry one of these:\n• /check — all days\n• /mon — Mondays\n• /tue — Tuesdays\n• /wed — Wednesdays\n...and so on\n\nOr click the "Check Courts" button with /start`
     );
   }
-});
-
-bot.on('polling_error', (error) => {
-  console.error('🚨 Polling error:', error.message || error);
 });
 
 app.listen(PORT, () => {
