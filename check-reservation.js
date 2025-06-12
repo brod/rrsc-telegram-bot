@@ -65,6 +65,7 @@ function isCourtAvailable(reservations, date) {
     }
 
     if (maxFreeDuration >= 120) {
+      const endTime12hr = dayjs(`${date}T${getWindowEnd(date)}`).format('h:mm A');
       const label = maxFreeDuration < 180 ? `${courtId}*` : `${courtId}`;
       availableCourts.push(label);
     }
@@ -93,29 +94,15 @@ async function checkDate(date) {
   return null;
 }
 
-async function runAvailabilityCheck(filter = null) {
+async function runAvailabilityCheck(filterDay = null) {
   const today = dayjs();
   const endDate = today.add(4, 'month');
   const datePromises = [];
-  const lowerFilter = filter ? filter.toLowerCase() : null;
 
   for (let date = today; date.isBefore(endDate); date = date.add(1, 'day')) {
     const dayName = date.format('ddd');
-    const monthName = date.format('MMMM').toLowerCase();
-
-    if (lowerFilter) {
-      if (lowerFilter === 'all') {
-      }
-      else if (["mon","tue","wed","thu","fri","sat","sun"].includes(lowerFilter)) {
-        if (dayName.toLowerCase() !== lowerFilter) continue;
-      }
-      else if (["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].includes(lowerFilter)) {
-        const currentMonth = today.format('MMMM').toLowerCase();
-        if (monthName !== lowerFilter || monthName === currentMonth) continue;
-      }
-      else {
-        continue;
-      }
+    if (filterDay) {
+      if (dayName.toLowerCase() !== filterDay.toLowerCase()) continue;
     } else if (!DEFAULT_CHECK_DAYS.includes(dayName)) {
       continue;
     }
@@ -130,7 +117,7 @@ async function runAvailabilityCheck(filter = null) {
     .map(r => r.value);
 
   const output = [
-    `📅 Court availability${filter ? ` for ${filter}` : ' (Mon–Wed)' }:`,
+    `📅 Court availability${filterDay ? ` for (${filterDay})` : ' (Mon–Wed)' }:`,
     ...availableDates,
     '',
     '* = Court has at least 2 hours but less than 3 hours.'
